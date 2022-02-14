@@ -6,7 +6,7 @@ For use with NFS_SERIAL ROM.
 
 *****
 
-A optional argument can be given with the device name of the serial port.
+An optional argument can be given with the device name of the serial port.
 
 e.g. /.spaun "/dev/ttyS1"
 
