@@ -49,7 +49,7 @@ class SPClass {
 		void aun_ack(queue_t *qptr);
 		void set_state(sp_state_t new_state);
 		void set_tx_state(tx_state_t new_state);//to be private
-		void tx_open(int flag, int stn, uint8_t *buf, int len);
+		int tx_open(int flag, int stn, uint8_t *buf, int len);
 		void send_scout(void);
 		void send_data(void);
 		void send_reply(void);
@@ -66,6 +66,7 @@ class SPClass {
 		AUNClass aun;
 	
 	public:
+		int frame_count = 0, bad_count = 0;
 		int	optimistic = 1, monitor_flag = 0, mystn;
 
 		int open(int stn, string device, int serial_ip_port);

@@ -5,6 +5,8 @@
 #include <iostream>
 #include <string>
 #include <memory>
+#include <cstdlib>
+
 using namespace std;
 
 #include <stdio.h> 
@@ -19,6 +21,14 @@ using namespace std;
 
 #define CRC_POLY	0x11021
 #define ESC_CHAR	0xe5
+
+/*
+void crc_noise(uint32_t *crc) {
+	if (!(rand() % 20)) {
+		*crc = 0xffff;
+		cout << "*\n";
+	}
+}*/
 
 SPCollectionClass mysp;
 
@@ -111,7 +121,7 @@ void SPClass::reset(void) {
 }
 
 void SPClass::set_state(sp_state_t new_state) {
-/*	if (sp_state != new_state) {
+	if (sp_state != new_state) {
 		cout << "SP  : STATE = ";
 		switch(new_state) {
 			case SP_IDLE:
@@ -126,9 +136,12 @@ void SPClass::set_state(sp_state_t new_state) {
 			case SP_ACKWAIT:
 				cout << "ACKWAIT";
 				break;
+			case SP_RESET:
+				cout << "RESET";
+				break;
 		}
 		cout << endl;
-	}*/
+	}
 	sp_state = new_state;
 
 	if (sp_state == SP_IDLE) {
@@ -219,20 +232,24 @@ void SPClass::check_queue(void) {
 	}
 }
 
-void SPClass::tx_open(int flag, int stn, uint8_t *buf, int len) {
+int SPClass::tx_open(int flag, int stn, uint8_t *buf, int len) {
 	//Begin transmission
 	MON("tx_open flag=" << hex << flag << dec << " stn=" << stn << " len=" << len << endl)
 	
 	if (tx_state != TX_IDLE)
-		MON("tx_open *** WARNING : WAS ALREADY TRANSMITTING!")
-		
-	buf[0] = stn;
-	buf[1] = stn >> 8;
+		MON("tx_open *** WARNING : ALREADY TRANSMITTING!")
+	else {
+		buf[0] = stn;
+		buf[1] = stn >> 8;
 
-	tx_flag = flag;		
-	tx_buf = buf;
-	tx_counter = len;
-	set_tx_state(TX_OPEN);
+		tx_flag = flag;		
+		tx_buf = buf;
+		tx_counter = len;
+		set_tx_state(TX_OPEN);
+		return 0;
+	}
+	
+	return -1;
 }
 
 void SPClass::send_scout(void) {
@@ -251,16 +268,16 @@ void SPClass::send_scout(void) {
 	p[2] = tx_u->ctrl | 0x80;
 	p[3] = tx_u->port;
 	
-	tx_open(SP_FLAG_SCOUT, tx_u->otherstn, p, tx_ctrllen);
-	
-	sp_state_t s = SP_SCOUTWAIT;//Wait for ACK/NAK
-	if (!tx_u->port) {//Immediate
-		if (tx_u->ctrl == 1 || tx_u->ctrl == 8)//Peek or Machine Type
-			s = SP_DATAWAIT;//Wait for data
-		else
-			s = SP_SCOUTWAIT;//Wait for ACK
+	if (!tx_open(SP_FLAG_SCOUT, tx_u->otherstn, p, tx_ctrllen)) {
+		sp_state_t s = SP_SCOUTWAIT;//Wait for ACK/NAK
+		if (!tx_u->port) {//Immediate
+			if (tx_u->ctrl == 1 || tx_u->ctrl == 8)//Peek or Machine Type
+				s = SP_DATAWAIT;//Wait for data
+			else
+				s = SP_SCOUTWAIT;//Wait for ACK
+		}
+		set_state(s);
 	}
-	set_state(s);
 }
 
 void SPClass::send_data(void) {
@@ -268,8 +285,8 @@ void SPClass::send_data(void) {
 	MON("TX DATA FROM " << tx_u->otherstn)
 
 	int l = 4 + tx_ctrllen - 2;
-	tx_open(SP_FLAG_DATA, tx_u->otherstn, tx_u->buf + l, tx_u->len - l);
-	set_state(SP_ACKWAIT);
+	if (!tx_open(SP_FLAG_DATA, tx_u->otherstn, tx_u->buf + l, tx_u->len - l))
+		set_state(SP_ACKWAIT);
 }
 
 void SPClass::send_ack(int stn) {
@@ -292,8 +309,8 @@ void SPClass::send_reset(void) {
 	tx_ackbuf[2] = 0;
 	tx_ackbuf[3] = 0;
 	
-	tx_open(SP_FLAG_RESET, mystn, tx_ackbuf, 4);
-	set_state(SP_RESET);
+	if (!tx_open(SP_FLAG_RESET, mystn, tx_ackbuf, 4))
+		set_state(SP_RESET);
 }
 
 void SPClass::test(void) {
@@ -360,7 +377,7 @@ void SPClass::end_of_frame(void) {
 			case SP_FLAG_SCOUT:
 				MON("RX SCOUT TO " << q.otherstn << hex << " PORT=" 
 						<< +q.port << " CTRL=" << +q.ctrl << dec << " LEN=" << rx_counter - 4)
-
+						
 				q.type = !q.port ? AUN_TYPE_IMMEDIATE : AUN_TYPE_UNICAST;					
 				aun.send(&q);
 				set_state(SP_IDLE);
@@ -461,13 +478,20 @@ void SPClass::poll(void) {
 					// Start &/ End of frame
 					//printf("ESC(%02x) ", c);
 					
+					//crc_noise(&rx_crc.crc);
+					
 					// Old frame?
-					if (rx_crc.crc)
-						MON("RX BAD CRC!")
-					else if (rx_state != RX_VOID)
-						end_of_frame();
+					if (rx_state != RX_VOID) {
+						++frame_count;
+						if (!rx_crc.crc)
+							end_of_frame();
+						else {
+							++bad_count;
+							MON("****** RX BAD CRC #" << bad_count << " total frames=" << frame_count)
+						}
+					}
 				
-					//printf("New frame %02x\n", c);
+					MON("New frame " << hex << +c << dec);
 					
 					// New frame
 					if (c >= 0x80) {
