@@ -121,7 +121,7 @@ void SPClass::reset(void) {
 }
 
 void SPClass::set_state(sp_state_t new_state) {
-	if (sp_state != new_state) {
+	/*if (sp_state != new_state) {
 		cout << "SP  : STATE = ";
 		switch(new_state) {
 			case SP_IDLE:
@@ -141,7 +141,7 @@ void SPClass::set_state(sp_state_t new_state) {
 				break;
 		}
 		cout << endl;
-	}
+	}*/
 	sp_state = new_state;
 
 	if (sp_state == SP_IDLE) {
@@ -491,7 +491,7 @@ void SPClass::poll(void) {
 						}
 					}
 				
-					MON("New frame " << hex << +c << dec);
+					//MON("New frame " << hex << +c << dec);
 					
 					// New frame
 					if (c >= 0x80) {
