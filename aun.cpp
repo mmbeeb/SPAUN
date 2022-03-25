@@ -117,7 +117,7 @@ void AUNClass::opensock(int port) {
 		die("set flags");
 }
 
-void AUNClass::send22(struct queue_t *u) {
+int AUNClass::send22(struct queue_t *u) {
 	//Populate AUN header and transmit
 
 	if (!u->handle)
@@ -146,9 +146,12 @@ void AUNClass::send22(struct queue_t *u) {
 		MON("Send packet to ip=" << inet_ntoa(net->si.sin_addr)
 				<< " port=" << ntohs(net->si.sin_port) << " len=" << u->len)
 				
-		if (sendto(mysock, p, u->len, 0, (struct sockaddr*) &net->si, slen) == -1)
+		if (sendto(mysock, p, u->len, 0, (struct sockaddr*) &net->si, slen) == -1) {
 			MON("sendto() failed")
+			return -1;
+		}
 	}
+	return 0;
 }
 
 int AUNClass::send(struct queue_t *u) {
@@ -161,6 +164,9 @@ int AUNClass::send(struct queue_t *u) {
 				break;
 			case AUN_TYPE_UNICAST:
 			case AUN_TYPE_IMMEDIATE:
+				if (!send22(u))
+					tx_q = *u;//remember for vetting acks/replies
+				break;
 			case AUN_TYPE_IMM_REPLY:
 			case AUN_TYPE_ACK:
 				send22(u);
@@ -174,28 +180,33 @@ int AUNClass::send(struct queue_t *u) {
 
 int AUNClass::gotdata(void) {
 	rx_q.type = rxbuf[0];
+	rx_q.otherstn = otherstations.active->stn;
+	rx_q.ctrl = rxbuf[2];
+	rx_q.port = rxbuf[1];	
 	rx_q.handle = rxbuf[7] << 24 | rxbuf[6] << 16 | rxbuf[5] << 8 | rxbuf[4];
+	rx_q.len = rxlen;
+	rx_q.buf = rxbuf;
 
 	MON("RX type=" << hex << rx_q.type << " port=" << +rx_q.port << " ctrl=" << +rx_q.ctrl << " handle=" << rx_q.handle << dec)
 	
-	int duplicate = 0;
+	int invalid = 0;
+	
 	if (rx_q.type == AUN_TYPE_BROADCAST || rx_q.type == AUN_TYPE_UNICAST || rx_q.type == AUN_TYPE_IMMEDIATE) {
 		//handle originated from other station so check it
-		duplicate = !otherstations.rxhandle(rx_q.handle);
+		invalid = !otherstations.rxhandle(rx_q.handle);
+	} else {
+		//ack or reply to last transmission?
+		invalid = (rx_q.otherstn != tx_q.otherstn) || (rx_q.handle != tx_q.handle);
+		if (!invalid)
+			tx_q.otherstn = 0;//prevent any more acks/replies
 	}
 
-	if (!duplicate) {
-		rx_q.otherstn = otherstations.active->stn;		
-		rx_q.ctrl = rxbuf[2];
-		rx_q.port = rxbuf[1];		
-		rx_q.buf = rxbuf;
-		rx_q.len = rxlen;
+	if (invalid) {
+		MON("RX DUPLICATE/INVALID\n")
+		return -1;
+	}
 
-		return 0;
-	} else
-		MON("RX DUPLICATE\n")
-	
-	return -1;
+	return 0;
 }
 
 int AUNClass::poll(void) {
@@ -226,6 +237,7 @@ int AUNClass::open(int stn) {
 
 	mystn = stn;// remember my station number
 	otherstations.mystn = stn;
+	tx_q.otherstn = 0;
 	opensock(AUN_PORT_BASE + stn);
 	return 0;
 }

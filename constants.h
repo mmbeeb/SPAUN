@@ -33,6 +33,7 @@
 #define SP_MAX_STATIONS		5
 #define SP_TIMEOUT			5		//seconds
 #define SP_TXDELAY			5		//1/SP_TXDELAY seconds
+#define SP_RXTIMEOUT		1		//seconds
 #define SP_RXBUFLEN			2048
 
 // Frame flags

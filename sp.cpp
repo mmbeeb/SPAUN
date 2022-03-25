@@ -121,8 +121,8 @@ void SPClass::reset(void) {
 }
 
 void SPClass::set_state(sp_state_t new_state) {
-	/*if (sp_state != new_state) {
-		cout << "SP  : STATE = ";
+	/*if (monitor_flag && sp_state != new_state) {
+		cout << "SP  (" << mystn <<") : STATE = ";
 		switch(new_state) {
 			case SP_IDLE:
 				cout << "IDLE\n";
@@ -139,6 +139,11 @@ void SPClass::set_state(sp_state_t new_state) {
 			case SP_RESET:
 				cout << "RESET";
 				break;
+			case SP_RESETWAIT:
+				cout << "RESETWAIT";
+				break;
+			case SP_REMOTEACKWAIT:
+				cout << "REMOTEACKWAIT";
 		}
 		cout << endl;
 	}*/
@@ -150,8 +155,8 @@ void SPClass::set_state(sp_state_t new_state) {
 }
 
 void SPClass::set_tx_state(tx_state_t new_state) {
-/*	if (tx_state != new_state) {
-		cout << "SP  : TX state = ";
+/*	if (monitor_flag && tx_state != new_state) {
+		cout << "SP  (" << mystn <<") : TX state = ";
 		switch (new_state) {
 			case TX_IDLE:
 				cout << "IDLE";
@@ -273,8 +278,6 @@ void SPClass::send_scout(void) {
 		if (!tx_u->port) {//Immediate
 			if (tx_u->ctrl == 1 || tx_u->ctrl == 8)//Peek or Machine Type
 				s = SP_DATAWAIT;//Wait for data
-			else
-				s = SP_SCOUTWAIT;//Wait for ACK
 		}
 		set_state(s);
 	}
@@ -293,14 +296,22 @@ void SPClass::send_ack(int stn) {
 	// Transmit ACK
 	MON("TX ACK FROM " << stn)
 	
-	tx_open(SP_FLAG_ACK, stn, tx_ackbuf, 2);
+	if (sp_state == SP_REMOTEACKWAIT) {
+		set_state(SP_IDLE);
+		tx_open(SP_FLAG_ACK, stn, tx_ackbuf, 2);
+	} else
+		MON("Unexpected ACK")
 }
 
 void SPClass::send_reply(void) {
 	// Transmit Immediate Reply
 	MON("TX IMM REPLY FROM " << tx_u->otherstn << " LEN=" << tx_u->len)
 	
-	tx_open(SP_FLAG_DATA, tx_u->otherstn, tx_u->buf + 6, tx_u->len - 6);
+	if (sp_state == SP_REMOTEACKWAIT) {
+		set_state(SP_IDLE);
+		tx_open(SP_FLAG_DATA, tx_u->otherstn, tx_u->buf + 6, tx_u->len - 6);
+	} else
+		MON("Unexpected reply")
 }
 
 void SPClass::send_reset(void) {
@@ -380,7 +391,8 @@ void SPClass::end_of_frame(void) {
 						
 				q.type = !q.port ? AUN_TYPE_IMMEDIATE : AUN_TYPE_UNICAST;					
 				aun.send(&q);
-				set_state(SP_IDLE);
+				set_state(SP_REMOTEACKWAIT);
+				trigger = clock() + SP_RXTIMEOUT * CLOCKS_PER_SEC;
 				break;
 				
 			case SP_FLAG_ACK:

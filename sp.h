@@ -21,7 +21,7 @@ class SPClass {
 		// SP_ACKWAIT	- Txed data frame, waiting for ACK frame
 		// SP_RESET		- On trigger send reset
 		enum sp_state_t {
-			SP_IDLE, SP_DATAWAIT, SP_SCOUTWAIT, SP_ACKWAIT, SP_RESET, SP_RESETWAIT
+			SP_IDLE, SP_DATAWAIT, SP_SCOUTWAIT, SP_ACKWAIT, SP_RESET, SP_RESETWAIT, SP_REMOTEACKWAIT
 		} sp_state = SP_IDLE;
 
 		//RX

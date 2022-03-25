@@ -21,7 +21,7 @@ class AUNClass {
 
 		void opensock(int port);
 		int gotdata(void);
-		void send22(queue_t *qptr);
+		int send22(queue_t *qptr);
 
 		struct aun_t {
 			int stn;
@@ -50,7 +50,7 @@ class AUNClass {
 	public:
 		int monitor_flag = 0;
 		uint8_t *rxbuf = 0;
-		queue_t rx_q;
+		queue_t rx_q, tx_q;
 		
 		int open(int station);
 		void close(void);
