@@ -205,6 +205,10 @@ int SPClass::send(queue_t *u) {
 				aun_ack(u);//Send ACK now!
 			break;			
 		case AUN_TYPE_IMMEDIATE:
+			r = tx_q.append(u);//Add to queue.
+			if (!r && optimistic && u->ctrl != ECONET_PEEK && u->ctrl != ECONET_MACHINEPEEK)//Send ACK now?
+				aun_ack(u);
+			break;			
 		case AUN_TYPE_IMM_REPLY:
 			if (tx_q.empty())//Only add if queue empty.
 				r = tx_q.append(u);

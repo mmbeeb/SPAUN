@@ -25,6 +25,13 @@
 #define AUN_TYPE_IMMEDIATE	5
 #define AUN_TYPE_IMM_REPLY	6
 
+#define ECONET_PEEK			1
+#define ECONET_POKE			2
+#define	ECONET_JSR			3
+#define ECONET_USERPROC		4
+#define ECONET_OSPROC		5
+#define ECONET_HALT			6
+#define ECONET_CONT			7
 #define ECONET_MACHINEPEEK	8
 
 /*
@@ -48,7 +55,7 @@
 /*
  * Queue
  */
-#define Q_SIZE				20
+#define Q_SIZE				50
 
 /*
  * Serial
