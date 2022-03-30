@@ -16,6 +16,9 @@ using namespace std;
 
 #include "sp.h"
 
+//#define MONSTATE
+//#define MONTXSTATE
+
 // Not happy with MON.  It is a bit of a kludge but it seems to work.
 #define MON(msg) {if (monitor_flag) cout << "SP  (" << mystn <<") : " << msg << endl;}
 
@@ -121,7 +124,8 @@ void SPClass::reset(void) {
 }
 
 void SPClass::set_state(sp_state_t new_state) {
-	/*if (monitor_flag && sp_state != new_state) {
+#ifdef MONSTATE
+	if (monitor_flag && sp_state != new_state) {
 		cout << "SP  (" << mystn <<") : STATE = ";
 		switch(new_state) {
 			case SP_IDLE:
@@ -146,7 +150,8 @@ void SPClass::set_state(sp_state_t new_state) {
 				cout << "REMOTEACKWAIT";
 		}
 		cout << endl;
-	}*/
+	}
+#endif
 	sp_state = new_state;
 
 	if (sp_state == SP_IDLE) {
@@ -155,7 +160,8 @@ void SPClass::set_state(sp_state_t new_state) {
 }
 
 void SPClass::set_tx_state(tx_state_t new_state) {
-/*	if (monitor_flag && tx_state != new_state) {
+#ifdef MONTXSTATE
+	if (monitor_flag && tx_state != new_state) {
 		cout << "SP  (" << mystn <<") : TX state = ";
 		switch (new_state) {
 			case TX_IDLE:
@@ -178,7 +184,8 @@ void SPClass::set_tx_state(tx_state_t new_state) {
 				break;
 		}
 		cout << endl;
-	}*/
+	}
+#endif
 	tx_state = new_state;
 }
 
@@ -311,11 +318,7 @@ void SPClass::send_reply(void) {
 	// Transmit Immediate Reply
 	MON("TX IMM REPLY FROM " << tx_u->otherstn << " LEN=" << tx_u->len)
 	
-	if (sp_state == SP_REMOTEACKWAIT) {
-		set_state(SP_IDLE);
-		tx_open(SP_FLAG_DATA, tx_u->otherstn, tx_u->buf + 6, tx_u->len - 6);
-	} else
-		MON("Unexpected reply")
+	tx_open(SP_FLAG_DATA, tx_u->otherstn, tx_u->buf + 6, tx_u->len - 6);
 }
 
 void SPClass::send_reset(void) {
