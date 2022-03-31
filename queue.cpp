@@ -23,17 +23,35 @@ void QueueClass::flush(void) {
 		this->remove();
 }
 
-int QueueClass::append(struct queue_t *q) {
+int QueueClass::append(queue_t *q) {
 	// add item to queue;
-	// buf2 is a pointer to a block of memory allocated using malloc
+	// buf is a pointer to a block of memory allocated using malloc
 	if (Q_count < Q_SIZE) {
-		struct queue_t *p = &Q[Q_head++];
+		queue_t *p = &Q[Q_head++];
 		Q_head %= Q_SIZE;
 		Q_count++;
 		
 		*p = *q;
 		
 		//printf("Q_ADD: %d %d %d\n", Q_count, Q_head, Q_tail);
+		return 0;
+	}
+	
+	return -1;
+}
+
+int QueueClass::insert(queue_t *q) {
+	// insert item at front of queue;
+	if (Q_count < Q_SIZE) {
+		--Q_tail;
+		Q_tail %= Q_SIZE;
+		
+		queue_t *p = &Q[Q_tail];
+		Q_count++;
+		
+		*p = *q;
+		
+		//printf("Q_INSERT: %d %d %d\n", Q_count, Q_head, Q_tail);
 		return 0;
 	}
 	

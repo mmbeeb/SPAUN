@@ -18,12 +18,13 @@ struct queue_t {
 
 class QueueClass {
 	private:
-		struct queue_t Q[Q_SIZE];
+		queue_t Q[Q_SIZE];
 		int Q_count = 0, Q_tail = 0, Q_head = 0;
 
 	public:
 		void flush(void);
-		int append(struct queue_t *q);
+		int append(queue_t *q);
+		int insert(queue_t *q);
 		void remove(void);
 		int empty(void);
 		struct queue_t *get(void);

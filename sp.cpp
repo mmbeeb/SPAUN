@@ -16,7 +16,7 @@ using namespace std;
 
 #include "sp.h"
 
-//#define MONSTATE
+#define MONSTATE
 //#define MONTXSTATE
 
 // Not happy with MON.  It is a bit of a kludge but it seems to work.
@@ -148,6 +148,7 @@ void SPClass::set_state(sp_state_t new_state) {
 				break;
 			case SP_REMOTEACKWAIT:
 				cout << "REMOTEACKWAIT";
+				break;
 		}
 		cout << endl;
 	}
@@ -217,8 +218,12 @@ int SPClass::send(queue_t *u) {
 				aun_ack(u);
 			break;			
 		case AUN_TYPE_IMM_REPLY:
-			if (tx_q.empty())//Only add if queue empty.
-				r = tx_q.append(u);
+			if (sp_state == SP_REMOTEACKWAIT) {//Are we waiting for and ACK or reply?
+				//We'll assume we're waiting for and immediate reply.
+				set_state(SP_IDLE);
+				r = tx_q.insert(u);//Insert at beginning of queue.
+			} else
+				MON("Unexpected IMM REPLY")
 			break;
 		case AUN_TYPE_ACK://Acks are not queued
 			send_ack(u->otherstn);
@@ -596,7 +601,9 @@ void SPClass::poll(void) {
 	} else {
 		if (sp_state != SP_IDLE) {
 			if (clock() > trigger) {
-				//MON("TRIGGER TIMEOUT");
+#ifdef MONSTATE
+				MON("TRIGGER TIMEOUT")
+#endif
 				if (sp_state == SP_RESETWAIT)
 					send_reset();
 				else
